@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>VERDICT</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="container">
+    <header class="site-header">
+        <div class="logo">CodeArena</div>
+        <nav>
+        <a href="/">Главная</a>
+        <a href="#submit">Отправить решение</a>
+        <a href="#standings">Рейтинг</a>
+        </nav>
+    </header>
+    
+    <section class="card">
+        <section class="card" id="submit">
+            <div class="section-header">
+                <div>
+                    <span class="section-label">SUBMISSION</span>
+                    <h2>Отправить решение</h2>
+                    <p>Выберите задачу и отправьте исходный код на проверку.</p>
+                </div>
+            </div>
+        <form method="post" action="/submit">
+            <label>
+                Контест
+                <input name="contest_id" value="demo-contest" readonly>
+            </label>
+
+            <label>
+                Команда
+                <input name="team_id" value="team-01" readonly>
+            </label>
+
+            <label>
+                Задача
+                <select name="problem_id">
+                    <option value="problem-A">Problem A — Hello, Verdict!</option>
+                </select>
+            </label>
+
+            <label>
+                Язык программирования
+                <select name="language">
+                    <option value="cpp">C++</option>
+                    <option value="python">Python</option>
+                </select>
+            </label>
+
+            <label>Исходный код
+                <textarea name="source_code" rows="12" required>#include &lt;iostream&gt;
+
+int main() {
+    std::cout &lt;&lt; "Hello, VERDICT!";
+}</textarea>
+            </label>
+
+            <button type="submit">Отправить решение</button>
+        </form>
+    </section>
+
+    {% if submission %}
+    <section class="card">
+        <h2>Результат отправки</h2>
+        <p><b>ID:</b> {{ submission.submission_id }}</p>
+        <p><b>Статус:</b> <span class="status">{{ submission.status.value }}</span></p>
+        <p>
+            <b>Verdict:</b>
+            {% if submission.status.value == "COMPLETED" and submission.verdict %}
+                {{ submission.verdict.value }}
+            {% else %}
+                —
+            {% endif %}
+        </p>
+    </section>
+    {% endif %}
+
+    <section class="card">
+        <h2>Standings</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Место</th>
+                    <th>Команда</th>
+                    <th>Решено</th>
+                    <th>Штраф</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in standings %}
+                <tr>
+                    <td>{{ row.rank }}</td>
+                    <td>{{ row.team_name }}</td>
+                    <td>{{ row.solved }}</td>
+                    <td>{{ row.penalty }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</main>
+</body>
+</html>
