@@ -1,0 +1,347 @@
+openapi: 3.0.3
+info:
+  title: VERDICT — Submissions API
+  version: 1.0.0
+  description: |
+    API-контракт сервиса отправок Verdict.
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /api/v1/submissions:
+    post:
+      operationId: createSubmission
+      summary: Отправить решение на асинхронную проверку
+      description: |
+        Порядок обработки:
+        1. Проверить тело запроса и заголовок Idempotency-Key.
+        2. Проверить идемпотентность в области (teamId, Idempotency-Key):
+           тот же ключ и тот же payload hash возвращают существующую отправку;
+           тот же ключ с другим payload hash возвращает 409 IDEMPOTENCY_KEY_REUSED.
+        3. Проверить существование соревнования, команды и задачи.
+        4. Проверить, открыто ли соревнование для отправок.
+        5. Атомарно сохранить отправку, ключ идемпотентности и событие Outbox.
+        При временной недоступности вернуть 503.
+        Правило канонизации тела для вычисления SHA-256 должно совпадать
+        с согласованной реализацией идемпотентности.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: UUID-ключ идемпотентности в области teamId.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubmissionRequest'
+      responses:
+        '202':
+          description: |
+            Запрос принят. При повторе того же ключа и того же тела возвращается
+            существующая отправка; её status может отражать текущее состояние.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSubmissionResponse'
+              example:
+                submissionId: 3f1c2b9e-5a7d-4c1e-9b0a-1d2e3f4a5b6c
+                status: QUEUED
+                createdAt: '2026-10-12T10:00:00Z'
+        '400':
+          description: VALIDATION_ERROR — некорректное тело или Idempotency-Key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: language must be cpp
+                  details:
+                    field: language
+        '404':
+          description: CONTEST_NOT_FOUND, TEAM_NOT_FOUND или PROBLEM_NOT_FOUND.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: PROBLEM_NOT_FOUND
+                  message: Problem not found in this contest
+                  details: {}
+        '409':
+          description: IDEMPOTENCY_KEY_REUSED или CONTEST_NOT_OPEN.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                idempotencyKeyReused:
+                  summary: Ключ использован с другим телом
+                  value:
+                    error:
+                      code: IDEMPOTENCY_KEY_REUSED
+                      message: Idempotency-Key was already used with a different payload
+                      details: {}
+                contestNotOpen:
+                  summary: Соревнование закрыто для отправок
+                  value:
+                    error:
+                      code: CONTEST_NOT_OPEN
+                      message: Contest is not open for submissions
+                      details: {}
+        '503':
+          description: TEMPORARILY_UNAVAILABLE. Клиент может повторить запрос с тем же ключом.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: TEMPORARILY_UNAVAILABLE
+                  message: Try again later
+                  details: {}
+
+  /api/v1/submissions/{submissionId}:
+    get:
+      operationId: getSubmission
+      summary: Получить состояние отправки
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: |
+            Текущее состояние отправки. verdict равен null, пока status не COMPLETED.
+            Для SYSTEM_ERROR verdict также равен null.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+              examples:
+                completed:
+                  summary: Проверка завершена
+                  value:
+                    submissionId: 3f1c2b9e-5a7d-4c1e-9b0a-1d2e3f4a5b6c
+                    status: COMPLETED
+                    verdict: ACCEPTED
+                    createdAt: '2026-10-12T10:00:00Z'
+                    updatedAt: '2026-10-12T10:00:05Z'
+                    sequence: 3
+                processing:
+                  summary: Проверка выполняется
+                  value:
+                    submissionId: 3f1c2b9e-5a7d-4c1e-9b0a-1d2e3f4a5b6c
+                    status: PROCESSING
+                    verdict: null
+                    createdAt: '2026-10-12T10:00:00Z'
+                    updatedAt: '2026-10-12T10:00:02Z'
+                    sequence: 2
+        '400':
+          description: Некорректный формат submissionId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: submissionId must be a valid UUID
+                  details:
+                    field: submissionId
+        '404':
+          description: SUBMISSION_NOT_FOUND.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: SUBMISSION_NOT_FOUND
+                  message: Submission not found
+                  details: {}
+
+  /api/v1/contests/{contestId}/events:
+    get:
+      operationId: contestEvents
+      summary: SSE-поток изменений отправок соревнования
+      description: |
+        Content-Type: text/event-stream.
+        Каждое изменение отправки приходит как:
+        event: submission.updated
+        data: <SubmissionUpdatedEvent JSON>
+        Комментарий : ping отправляется каждые 15 секунд.
+        Поле SSE id и Last-Event-ID не используются.
+        Клиент хранит последний sequence для каждого submissionId и пропускает
+        событие, если sequence меньше или равен уже известному.
+        После обрыва клиент восстанавливает состояние через GET.
+      parameters:
+        - name: contestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: submission.updated
+                data: {"eventId":"550e8400-e29b-41d4-a716-446655440001","schemaVersion":1,"traceId":"550e8400-e29b-41d4-a716-446655440002","occurredAt":"2026-10-12T10:00:05Z","submissionId":"3f1c2b9e-5a7d-4c1e-9b0a-1d2e3f4a5b6c","status":"COMPLETED","verdict":"ACCEPTED","sequence":3}
+
+components:
+  schemas:
+    CreateSubmissionRequest:
+      type: object
+      required:
+        - contestId
+        - teamId
+        - problemId
+        - language
+        - sourceCode
+      properties:
+        contestId:
+          type: string
+          format: uuid
+        teamId:
+          type: string
+          format: uuid
+        problemId:
+          type: string
+          format: uuid
+        language:
+          type: string
+          enum: [cpp]
+        sourceCode:
+          type: string
+          minLength: 1
+          description: Непустой исходный код; максимум 65536 байт в UTF-8.
+
+    CreateSubmissionResponse:
+      type: object
+      required: [submissionId, status, createdAt]
+      properties:
+        submissionId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/Status'
+        createdAt:
+          type: string
+          format: date-time
+
+    Submission:
+      type: object
+      required:
+        - submissionId
+        - status
+        - verdict
+        - createdAt
+        - updatedAt
+        - sequence
+      properties:
+        submissionId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/Status'
+        verdict:
+          $ref: '#/components/schemas/Verdict'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        sequence:
+          type: integer
+          minimum: 1
+
+    SubmissionUpdatedEvent:
+      type: object
+      required:
+        - eventId
+        - schemaVersion
+        - traceId
+        - occurredAt
+        - submissionId
+        - status
+        - verdict
+        - sequence
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        schemaVersion:
+          type: integer
+          enum: [1]
+        traceId:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        submissionId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/Status'
+        verdict:
+          $ref: '#/components/schemas/Verdict'
+        sequence:
+          type: integer
+          minimum: 1
+
+    Status:
+      type: string
+      description: Статус отправки. COMPLETED и SYSTEM_ERROR — финальные.
+      enum: [QUEUED, PROCESSING, RETRYING, COMPLETED, SYSTEM_ERROR]
+
+    Verdict:
+      type: string
+      nullable: true
+      description: Заполнен тогда и только тогда, когда status равен COMPLETED.
+      enum:
+        - ACCEPTED
+        - WRONG_ANSWER
+        - COMPILATION_ERROR
+        - TIME_LIMIT_EXCEEDED
+        - RUNTIME_ERROR
+        - null
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - CONTEST_NOT_FOUND
+                - TEAM_NOT_FOUND
+                - PROBLEM_NOT_FOUND
+                - SUBMISSION_NOT_FOUND
+                - IDEMPOTENCY_KEY_REUSED
+                - CONTEST_NOT_OPEN
+                - TEMPORARILY_UNAVAILABLE
+            message:
+              type: string
+            details:
+              type: object
