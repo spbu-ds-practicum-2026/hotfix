@@ -2,6 +2,7 @@ import random
 
 from config import ProcessingSettings
 
+
 def backoff_delay_seconds(
     settings: ProcessingSettings,
     attempt_count: int,
