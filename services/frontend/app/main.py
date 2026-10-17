@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from app.api.client import ApiClient
 from app.models.contracts import SubmissionCreate

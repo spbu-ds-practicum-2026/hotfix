@@ -3,14 +3,13 @@ from __future__ import annotations
 from uuid import uuid4
 
 import httpx
-
 from app.config import API_BASE_URL, USE_MOCKS
 from app.models.contracts import (
+    StandingRow,
+    StandingsResponse,
     Submission,
     SubmissionCreate,
     SubmissionStatus,
-    StandingsResponse,
-    StandingRow,
     Verdict,
 )
 

@@ -1,5 +1,4 @@
 import pytest
-
 from app.api.client import ApiClient
 from app.models.contracts import SubmissionCreate, SubmissionStatus
 
