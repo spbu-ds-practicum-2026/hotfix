@@ -116,7 +116,9 @@ class OutboxRepository(Protocol):
 
     async def mark_outbox_event_published(self, event_id: UUID) -> None: ...
 
-    async def record_outbox_publish_failure(self, event_id: UUID, error: str) -> None: ...
+    async def record_outbox_publish_failure(
+        self, event_id: UUID, error: str
+    ) -> None: ...
 
 
 class WorkerStore(Protocol):

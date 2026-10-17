@@ -67,41 +67,63 @@ async def run_checks(shard_index: int) -> bool:
         )
         try:
             await repository.create_submission_with_outbox(
-                rollback_submission, broken_event, rollback_key, hashlib.sha256(b"rollback").hexdigest()
+                rollback_submission,
+                broken_event,
+                rollback_key,
+                hashlib.sha256(b"rollback").hexdigest(),
             )
             report("ошибка вставки события откатывает всю транзакцию", False)
         except DuplicateRecordError:
-            submission_left = await repository.get_submission_by_id(rollback_submission.submission_id)
+            submission_left = await repository.get_submission_by_id(
+                rollback_submission.submission_id
+            )
             key_count = await _count(
                 engine,
                 "SELECT count(*) FROM idempotency_keys WHERE team_id = :team_id AND idempotency_key = :key",
                 {"team_id": seed_ids.TEAM_ALPHA_ID, "key": rollback_key},
             )
-            report("ошибка вставки события откатывает всю транзакцию", submission_left is None and key_count == 0)
+            report(
+                "ошибка вставки события откатывает всю транзакцию",
+                submission_left is None and key_count == 0,
+            )
 
         # 2. Успешное создание: все три записи на месте.
         submission = _new_submission()
         key = uuid4()
         payload_hash = hashlib.sha256(b"body").hexdigest()
         event = build_submission_queued_event(
-            submission_id=submission.submission_id, trace_id=submission.trace_id, occurred_at=submission.created_at
+            submission_id=submission.submission_id,
+            trace_id=submission.trace_id,
+            occurred_at=submission.created_at,
         )
-        created = await repository.create_submission_with_outbox(submission, event, key, payload_hash)
+        created = await repository.create_submission_with_outbox(
+            submission, event, key, payload_hash
+        )
         outbox_count = await _count(
-            engine, "SELECT count(*) FROM outbox_events WHERE submission_id = :id", {"id": submission.submission_id}
+            engine,
+            "SELECT count(*) FROM outbox_events WHERE submission_id = :id",
+            {"id": submission.submission_id},
         )
         report(
             "успешное создание: submission в QUEUED и ровно одно событие в Outbox",
-            created.is_new and created.submission.status.value == "QUEUED" and outbox_count == 1,
+            created.is_new
+            and created.submission.status.value == "QUEUED"
+            and outbox_count == 1,
         )
 
         # 3. Повтор с тем же ключом и тем же телом: та же отправка, без новых строк.
         repeat_event = build_submission_queued_event(
-            submission_id=submission.submission_id, trace_id=submission.trace_id, occurred_at=submission.created_at
+            submission_id=submission.submission_id,
+            trace_id=submission.trace_id,
+            occurred_at=submission.created_at,
         )
-        repeated = await repository.create_submission_with_outbox(submission, repeat_event, key, payload_hash)
+        repeated = await repository.create_submission_with_outbox(
+            submission, repeat_event, key, payload_hash
+        )
         outbox_count_after = await _count(
-            engine, "SELECT count(*) FROM outbox_events WHERE submission_id = :id", {"id": submission.submission_id}
+            engine,
+            "SELECT count(*) FROM outbox_events WHERE submission_id = :id",
+            {"id": submission.submission_id},
         )
         report(
             "повтор с тем же ключом возвращает ту же отправку и не пишет событие",
@@ -113,7 +135,9 @@ async def run_checks(shard_index: int) -> bool:
         # 4. Тот же ключ, другое тело.
         other = _new_submission()
         other_event = build_submission_queued_event(
-            submission_id=other.submission_id, trace_id=other.trace_id, occurred_at=other.created_at
+            submission_id=other.submission_id,
+            trace_id=other.trace_id,
+            occurred_at=other.created_at,
         )
         try:
             await repository.create_submission_with_outbox(
@@ -121,14 +145,24 @@ async def run_checks(shard_index: int) -> bool:
             )
             report("тот же ключ с другим телом отклоняется", False)
         except IdempotencyKeyReusedError:
-            report("тот же ключ с другим телом отклоняется", await repository.get_submission_by_id(other.submission_id) is None)
+            report(
+                "тот же ключ с другим телом отклоняется",
+                await repository.get_submission_by_id(other.submission_id) is None,
+            )
 
         # Уборка тестовых строк.
         async with engine.begin() as connection:
             parameters = {"id": submission.submission_id}
-            await connection.execute(text("DELETE FROM outbox_events WHERE submission_id = :id"), parameters)
-            await connection.execute(text("DELETE FROM idempotency_keys WHERE submission_id = :id"), parameters)
-            await connection.execute(text("DELETE FROM submissions WHERE submission_id = :id"), parameters)
+            await connection.execute(
+                text("DELETE FROM outbox_events WHERE submission_id = :id"), parameters
+            )
+            await connection.execute(
+                text("DELETE FROM idempotency_keys WHERE submission_id = :id"),
+                parameters,
+            )
+            await connection.execute(
+                text("DELETE FROM submissions WHERE submission_id = :id"), parameters
+            )
     finally:
         await engine.dispose()
 
@@ -136,7 +170,9 @@ async def run_checks(shard_index: int) -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Проверка атомарности Submission + Outbox")
+    parser = argparse.ArgumentParser(
+        description="Проверка атомарности Submission + Outbox"
+    )
     parser.add_argument("--shard", type=int, default=0)
     arguments = parser.parse_args()
     sys.exit(0 if asyncio.run(run_checks(arguments.shard)) else 1)

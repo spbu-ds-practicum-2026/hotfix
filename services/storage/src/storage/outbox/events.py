@@ -70,7 +70,9 @@ def build_submission_verdict_event(
     только для status = COMPLETED и обязано содержать вердикт.
     """
     if status is not SubmissionStatus.COMPLETED or verdict is None:
-        raise ValueError("submission.verdict.v1 публикуется только для COMPLETED с вердиктом")
+        raise ValueError(
+            "submission.verdict.v1 публикуется только для COMPLETED с вердиктом"
+        )
     event_id = event_id or uuid4()
     payload = {
         "eventId": str(event_id),

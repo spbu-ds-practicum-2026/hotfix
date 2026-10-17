@@ -17,7 +17,11 @@ def _stable_position(value: str) -> int:
 
 
 class ConsistentHashRing:
-    def __init__(self, node_names: tuple[str, ...], virtual_nodes_per_node: int = DEFAULT_VIRTUAL_NODES_PER_NODE) -> None:
+    def __init__(
+        self,
+        node_names: tuple[str, ...],
+        virtual_nodes_per_node: int = DEFAULT_VIRTUAL_NODES_PER_NODE,
+    ) -> None:
         if not node_names:
             raise ValueError("Нужен хотя бы один узел")
         points = sorted(
@@ -29,7 +33,9 @@ class ConsistentHashRing:
         self._owners = [owner for _, owner in points]
 
     def get_node(self, key: str) -> str:
-        index = bisect_right(self._positions, _stable_position(key)) % len(self._positions)
+        index = bisect_right(self._positions, _stable_position(key)) % len(
+            self._positions
+        )
         return self._owners[index]
 
 
