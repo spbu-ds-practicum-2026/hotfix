@@ -35,13 +35,10 @@ def test_map_judge0_status_id(status_id, expected):
     assert map_judge0_status_id(status_id) is expected
 
 
-@pytest.mark.xfail(
-    reason="ДЕФЕКТ: map_judge0_status_id возвращает None для id 13, 14 и других неизвестных "
-    "(нет final return/raise). Владелец: Алёна (processing).",
-)
 @pytest.mark.parametrize("status_id", [0, 13, 14, 999])
-def test_map_judge0_unknown_status_id_is_not_none(status_id):
-    assert map_judge0_status_id(status_id) is not None
+def test_map_judge0_unknown_status_id_raises_protocol_error(status_id):
+    with pytest.raises(JudgeProtocolError):
+        map_judge0_status_id(status_id)
 
 
 @pytest.mark.parametrize(
