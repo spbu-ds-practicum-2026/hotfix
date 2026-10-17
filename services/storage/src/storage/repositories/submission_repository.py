@@ -82,7 +82,9 @@ INSERT_OUTBOX_EVENT_SQL = text(
     """
 ).bindparams(bindparam("payload", type_=JSONB))
 
-SELECT_SUBMISSION_SQL = text(f"SELECT {SUBMISSION_COLUMNS} FROM submissions WHERE submission_id = :submission_id")
+SELECT_SUBMISSION_SQL = text(
+    f"SELECT {SUBMISSION_COLUMNS} FROM submissions WHERE submission_id = :submission_id"
+)
 
 SELECT_PENDING_OUTBOX_EVENTS_SQL = text(
     f"""
@@ -126,9 +128,13 @@ def _translate_integrity_error(error: IntegrityError) -> Exception:
     message = str(error.orig)
     if "violates foreign key constraint" in message:
         if "fk_submissions_team" in message or "fk_idempotency_keys_team" in message:
-            return ReferenceNotFoundError("team", "Команда не найдена или не принадлежит соревнованию")
+            return ReferenceNotFoundError(
+                "team", "Команда не найдена или не принадлежит соревнованию"
+            )
         if "fk_submissions_problem" in message:
-            return ReferenceNotFoundError("problem", "Задача не найдена или не принадлежит соревнованию")
+            return ReferenceNotFoundError(
+                "problem", "Задача не найдена или не принадлежит соревнованию"
+            )
     if "duplicate key value" in message:
         return DuplicateRecordError(f"Запись уже существует: {message}")
     return error
@@ -253,14 +259,22 @@ class SubmissionRepository:
                         "created_at": event.created_at,
                     },
                 )
-                created = await connection.execute(SELECT_SUBMISSION_SQL, {"submission_id": submission.submission_id})
-                return CreateSubmissionResult(submission=_to_submission_record(created.one()), is_new=True)
+                created = await connection.execute(
+                    SELECT_SUBMISSION_SQL, {"submission_id": submission.submission_id}
+                )
+                return CreateSubmissionResult(
+                    submission=_to_submission_record(created.one()), is_new=True
+                )
 
-    async def get_submission_by_id(self, submission_id: UUID) -> SubmissionRecord | None:
+    async def get_submission_by_id(
+        self, submission_id: UUID
+    ) -> SubmissionRecord | None:
         """Возвращает отправку или None, если такой нет на этом шарде."""
         with _translated_storage_errors():
             async with self._engine.connect() as connection:
-                result = await connection.execute(SELECT_SUBMISSION_SQL, {"submission_id": submission_id})
+                result = await connection.execute(
+                    SELECT_SUBMISSION_SQL, {"submission_id": submission_id}
+                )
                 row = result.first()
                 return None if row is None else _to_submission_record(row)
 
@@ -274,7 +288,9 @@ class SubmissionRepository:
             raise ValueError("limit должен быть положительным")
         with _translated_storage_errors():
             async with self._engine.connect() as connection:
-                result = await connection.execute(SELECT_PENDING_OUTBOX_EVENTS_SQL, {"limit": limit})
+                result = await connection.execute(
+                    SELECT_PENDING_OUTBOX_EVENTS_SQL, {"limit": limit}
+                )
                 return [_to_outbox_event_record(row) for row in result]
 
     async def mark_outbox_event_published(self, event_id: UUID) -> bool:
@@ -284,15 +300,20 @@ class SubmissionRepository:
         """
         with _translated_storage_errors():
             async with self._engine.begin() as connection:
-                result = await connection.execute(MARK_OUTBOX_EVENT_PUBLISHED_SQL, {"event_id": event_id})
+                result = await connection.execute(
+                    MARK_OUTBOX_EVENT_PUBLISHED_SQL, {"event_id": event_id}
+                )
                 return result.rowcount == 1
 
-    async def record_outbox_publish_failure(self, event_id: UUID, error_message: str) -> None:
+    async def record_outbox_publish_failure(
+        self, event_id: UUID, error_message: str
+    ) -> None:
         """Увеличивает attempt_count и сохраняет текст ошибки публикации. Событие остаётся в очереди на отправку."""
         with _translated_storage_errors():
             async with self._engine.begin() as connection:
                 await connection.execute(
-                    RECORD_OUTBOX_PUBLISH_FAILURE_SQL, {"event_id": event_id, "error_message": error_message}
+                    RECORD_OUTBOX_PUBLISH_FAILURE_SQL,
+                    {"event_id": event_id, "error_message": error_message},
                 )
 
     async def _return_existing_submission(
@@ -304,10 +325,17 @@ class SubmissionRepository:
     ) -> CreateSubmissionResult:
         key_row = (
             await connection.execute(
-                SELECT_IDEMPOTENCY_KEY_SQL, {"team_id": team_id, "idempotency_key": idempotency_key}
+                SELECT_IDEMPOTENCY_KEY_SQL,
+                {"team_id": team_id, "idempotency_key": idempotency_key},
             )
         ).one()
         if key_row.payload_hash != payload_hash:
-            raise IdempotencyKeyReusedError("Idempotency-Key уже использован с другим телом запроса")
-        existing = await connection.execute(SELECT_SUBMISSION_SQL, {"submission_id": key_row.submission_id})
-        return CreateSubmissionResult(submission=_to_submission_record(existing.one()), is_new=False)
+            raise IdempotencyKeyReusedError(
+                "Idempotency-Key уже использован с другим телом запроса"
+            )
+        existing = await connection.execute(
+            SELECT_SUBMISSION_SQL, {"submission_id": key_row.submission_id}
+        )
+        return CreateSubmissionResult(
+            submission=_to_submission_record(existing.one()), is_new=False
+        )

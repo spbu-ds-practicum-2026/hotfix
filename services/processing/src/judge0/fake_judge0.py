@@ -19,7 +19,7 @@ def _read_marker(source_code: str, key: str, default_value: str) -> str:
     start = source_code.find(key)
     if start == -1:
         return default_value
-    rest = source_code[start + len(key):].lstrip(" ")
+    rest = source_code[start + len(key) :].lstrip(" ")
     words = rest.split()
     return words[0] if words else default_value
 
@@ -58,20 +58,35 @@ class FakeJudge0:
     async def get_result(self, judge_submission_id: str) -> JudgeResult:
         run = self._runs.get(judge_submission_id)
         if run is None:
-            raise JudgeProtocolError(f"unknown judge_submission_id {judge_submission_id}")
+            raise JudgeProtocolError(
+                f"unknown judge_submission_id {judge_submission_id}"
+            )
         if run.scenario == "timeout":
             raise JudgeTimeoutError("fake judge0: no result in time")
         if run.pending_left > 0:
             run.pending_left -= 1
             return JudgeResult(status=JudgeStatus.PENDING)
         if run.scenario == "accepted":
-            return JudgeResult(JudgeStatus.ACCEPTED, stdout="42\n", time_ms=15, memory_kb=3200)
+            return JudgeResult(
+                JudgeStatus.ACCEPTED, stdout="42\n", time_ms=15, memory_kb=3200
+            )
         if run.scenario == "wrong_answer":
-            return JudgeResult(JudgeStatus.WRONG_ANSWER, stdout="41\n", time_ms=12, memory_kb=3100)
+            return JudgeResult(
+                JudgeStatus.WRONG_ANSWER, stdout="41\n", time_ms=12, memory_kb=3100
+            )
         if run.scenario == "compilation_error":
-            return JudgeResult(JudgeStatus.COMPILATION_ERROR, stderr="error: expected declaration")
+            return JudgeResult(
+                JudgeStatus.COMPILATION_ERROR, stderr="error: expected declaration"
+            )
         if run.scenario == "time_limit_exceeded":
-            return JudgeResult(JudgeStatus.TIME_LIMIT_EXCEEDED, time_ms=2000, memory_kb=3500)
+            return JudgeResult(
+                JudgeStatus.TIME_LIMIT_EXCEEDED, time_ms=2000, memory_kb=3500
+            )
         if run.scenario == "runtime_error":
-            return JudgeResult(JudgeStatus.RUNTIME_ERROR, stderr="Segmentation fault", time_ms=8, memory_kb=3000)
+            return JudgeResult(
+                JudgeStatus.RUNTIME_ERROR,
+                stderr="Segmentation fault",
+                time_ms=8,
+                memory_kb=3000,
+            )
         raise JudgeProtocolError(f"fake judge0: unknown scenario {run.scenario}")

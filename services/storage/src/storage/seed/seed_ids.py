@@ -49,4 +49,6 @@ if __name__ == "__main__":
     print(f"problem A   {PROBLEM_A_ID}")
     print(f"problem B   {PROBLEM_B_ID}")
     for name in SUBMISSION_NAMES:
-        print(f"submission {name}  {submission_id_for(name)}  key {idempotency_key_for(name)}")
+        print(
+            f"submission {name}  {submission_id_for(name)}  key {idempotency_key_for(name)}"
+        )

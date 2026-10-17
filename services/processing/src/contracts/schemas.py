@@ -27,7 +27,9 @@ class SubmissionCreateRequest(CamelModel):
         if not value:
             raise ValueError("sourceCode must not be empty")
         if len(value.encode("utf-8")) > MAX_SOURCE_CODE_BYTES:
-            raise ValueError(f"sourceCode must be at most {MAX_SOURCE_CODE_BYTES} bytes")
+            raise ValueError(
+                f"sourceCode must be at most {MAX_SOURCE_CODE_BYTES} bytes"
+            )
         return value
 
 

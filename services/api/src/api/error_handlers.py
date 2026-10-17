@@ -18,4 +18,6 @@ def register_error_handlers(application: FastAPI) -> None:
         first = error.errors()[0]
         field = ".".join(str(part) for part in first["loc"][1:]) or None
         api_error = validation_error(first["msg"], field)
-        return JSONResponse(status_code=api_error.http_status, content=api_error.to_body())
+        return JSONResponse(
+            status_code=api_error.http_status, content=api_error.to_body()
+        )

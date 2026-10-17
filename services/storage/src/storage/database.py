@@ -20,7 +20,9 @@ def _read_required_environment_variable(name: str) -> str:
 
 def build_database_url(shard_index: int) -> URL:
     if shard_index not in range(SHARD_COUNT):
-        raise ValueError(f"shard_index должен быть от 0 до {SHARD_COUNT - 1}, получено {shard_index}")
+        raise ValueError(
+            f"shard_index должен быть от 0 до {SHARD_COUNT - 1}, получено {shard_index}"
+        )
     prefix = f"POSTGRES_SHARD_{shard_index}"
     return URL.create(
         drivername="postgresql+asyncpg",
