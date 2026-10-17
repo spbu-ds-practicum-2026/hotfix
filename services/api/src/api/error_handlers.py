@@ -1,10 +1,9 @@
 """Преобразование ошибок FastAPI в единый формат {"error": {...}}."""
 
+from contracts.errors import ApiError, validation_error
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-
-from contracts.errors import ApiError, validation_error
 
 
 def register_error_handlers(application: FastAPI) -> None:
