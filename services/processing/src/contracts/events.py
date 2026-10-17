@@ -21,12 +21,10 @@ class EventBase(CamelModel):
 
 
 class SubmissionQueuedEvent(EventBase):
-
     attempt_id: UUID
 
 
 class SubmissionVerdictEvent(EventBase):
-
     attempt_id: UUID
     fencing_token: int
     status: Literal[SubmissionStatus.COMPLETED] = SubmissionStatus.COMPLETED

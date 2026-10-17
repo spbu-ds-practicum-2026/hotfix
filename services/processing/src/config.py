@@ -64,9 +64,15 @@ class ProcessingSettings:
             max_retry_attempts=int(required("MAX_RETRY_ATTEMPTS")),
             retry_base_delay_seconds=float(required("RETRY_BASE_DELAY_SECONDS")),
             retry_max_delay_seconds=float(optional("RETRY_MAX_DELAY_SECONDS")),
-            judge0_total_timeout_seconds=float(optional("JUDGE0_TOTAL_TIMEOUT_SECONDS")),
-            judge0_poll_interval_seconds=float(optional("JUDGE0_POLL_INTERVAL_SECONDS")),
-            publisher_confirm_timeout_seconds=float(optional("PUBLISHER_CONFIRM_TIMEOUT_SECONDS")),
+            judge0_total_timeout_seconds=float(
+                optional("JUDGE0_TOTAL_TIMEOUT_SECONDS")
+            ),
+            judge0_poll_interval_seconds=float(
+                optional("JUDGE0_POLL_INTERVAL_SECONDS")
+            ),
+            publisher_confirm_timeout_seconds=float(
+                optional("PUBLISHER_CONFIRM_TIMEOUT_SECONDS")
+            ),
             watchdog_interval_seconds=float(optional("WATCHDOG_INTERVAL_SECONDS")),
             outbox_batch_size=int(optional("OUTBOX_BATCH_SIZE")),
             outbox_idle_seconds=float(optional("OUTBOX_IDLE_SECONDS")),

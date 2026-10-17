@@ -24,10 +24,11 @@ class JudgeResult:
 
 
 class JudgeError(Exception):
-   pass
+    pass
+
 
 class JudgeUnavailableError(JudgeError):
-   pass
+    pass
 
 
 class JudgeTimeoutError(JudgeError):
@@ -45,11 +46,9 @@ class Judge0Adapter(Protocol):
         language: str,
         time_limit_ms: int,
         memory_limit_kb: int,
-    ) -> str:
-        ...
+    ) -> str: ...
 
-    async def get_result(self, judge_submission_id: str) -> JudgeResult:
-        ...
+    async def get_result(self, judge_submission_id: str) -> JudgeResult: ...
 
 
 _VERDICT_BY_JUDGE_STATUS: dict[JudgeStatus, Verdict] = {

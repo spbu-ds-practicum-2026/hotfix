@@ -12,8 +12,8 @@ class ErrorCode(str, Enum):
     CONTEST_NOT_OPEN = "CONTEST_NOT_OPEN"
     TEMPORARILY_UNAVAILABLE = "TEMPORARILY_UNAVAILABLE"
 
-class ApiError(Exception):
 
+class ApiError(Exception):
     def __init__(
         self,
         http_status: int,
@@ -51,7 +51,9 @@ def team_not_found() -> ApiError:
 
 
 def problem_not_found() -> ApiError:
-    return ApiError(404, ErrorCode.PROBLEM_NOT_FOUND, "Problem not found in this contest")
+    return ApiError(
+        404, ErrorCode.PROBLEM_NOT_FOUND, "Problem not found in this contest"
+    )
 
 
 def submission_not_found() -> ApiError:
@@ -67,7 +69,9 @@ def idempotency_key_reused() -> ApiError:
 
 
 def contest_not_open() -> ApiError:
-    return ApiError(409, ErrorCode.CONTEST_NOT_OPEN, "Contest is not open for submissions")
+    return ApiError(
+        409, ErrorCode.CONTEST_NOT_OPEN, "Contest is not open for submissions"
+    )
 
 
 def temporarily_unavailable() -> ApiError:
