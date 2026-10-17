@@ -1,2 +1,9 @@
 .vscode/
 .idea/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+*.pyc
+.venv/
