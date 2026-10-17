@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Any
 
+
 class ErrorCode(str, Enum):
     VALIDATION_ERROR = "VALIDATION_ERROR"
     CONTEST_NOT_FOUND = "CONTEST_NOT_FOUND"
