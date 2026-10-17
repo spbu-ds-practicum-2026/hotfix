@@ -17,7 +17,7 @@ def test_submission_create_contract():
 def test_submission_status_values_are_fixed():
     assert SubmissionStatus.QUEUED.value == "QUEUED"
     assert SubmissionStatus.PROCESSING.value == "PROCESSING"
-    assert SubmissionStatus.ACCEPTED.value == "ACCEPTED"
+    assert SubmissionStatus.COMPLETED.value == "COMPLETED"
     assert SubmissionStatus.SYSTEM_ERROR.value == "SYSTEM_ERROR"
 
 
@@ -28,10 +28,10 @@ def test_submission_response_contract():
         team_id="team-1",
         problem_id="A",
         language="cpp",
-        status=SubmissionStatus.ACCEPTED,
+        status=SubmissionStatus.COMPLETED,
         verdict="ACCEPTED",
         created_at="2026-10-15T12:00:00Z",
     )
 
     assert submission.submission_id == "sub-1"
-    assert submission.status == SubmissionStatus.ACCEPTED
+    assert submission.status == SubmissionStatus.COMPLETED

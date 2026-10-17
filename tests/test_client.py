@@ -1,6 +1,6 @@
 import pytest
 from app.api.client import ApiClient
-from app.models.contracts import SubmissionCreate, SubmissionStatus
+from app.models.contracts import SubmissionCreate, SubmissionStatus, Verdict
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,8 @@ async def test_mock_submission():
         )
     )
 
-    assert result.status == SubmissionStatus.ACCEPTED
+    assert result.status == SubmissionStatus.COMPLETED
+    assert result.verdict == Verdict.ACCEPTED
     assert result.submission_id
 
 
