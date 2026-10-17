@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class SubmissionStatus(str, Enum):
     QUEUED = "QUEUED"
     PROCESSING = "PROCESSING"
