@@ -1,0 +1,5 @@
+aio-pika
+sqlalchemy[asyncio]
+asyncpg
+pydantic
+python-dotenv
