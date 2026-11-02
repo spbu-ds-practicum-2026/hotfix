@@ -7,6 +7,10 @@ from uuid import UUID
 from contracts.statuses import SubmissionStatus, Verdict
 
 
+class BrokerUnavailableError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class Claim:
     submission_id: UUID
@@ -59,7 +63,9 @@ class WorkerStore(Protocol):
         self, submission_id: UUID, fencing_token: int, reason: str
     ) -> bool: ...
 
-    async def recover_expired(self, limit: int) -> list[AffectedSubmission]: ...
+    async def recover_expired(
+        self, limit: int, max_attempts: int
+    ) -> list[AffectedSubmission]: ...
 
     async def enqueue_due_retries(self, limit: int) -> int: ...
 
