@@ -170,6 +170,174 @@ paths:
                   message: Submission not found
                   details: {}
 
+  /api/v1/contests:
+    get:
+      operationId: listContests
+      summary: Получить список всех доступных соревнований
+      responses:
+        '200':
+          description: Список соревнований
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Contest'
+
+  /api/v1/contests/{contestId}:
+    get:
+      operationId: getContest
+      summary: Получить информацию о соревновании
+      parameters:
+        - name: contestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные соревнования
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contest'
+        '404':
+          description: Соревнование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/contests/{contestId}/teams:
+    get:
+      operationId: listContestTeams
+      summary: Получить список команд соревнования
+      parameters:
+        - name: contestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список команд
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Team'
+        '404':
+          description: Соревнование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/contests/{contestId}/problems:
+    get:
+      operationId: listContestProblems
+      summary: Получить список задач соревнования
+      parameters:
+        - name: contestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список задач
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Problem'
+        '404':
+          description: Соревнование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/contests/{contestId}/standings:
+    get:
+      operationId: getStandings
+      summary: Получить актуальную или замороженную турнирную таблицу (Standings)
+      parameters:
+        - name: contestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Таблица результатов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Standings'
+        '404':
+          description: Соревнование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/contests/{contestId}/freeze:
+    post:
+      operationId: freezeContest
+      summary: Заморозить турнирную таблицу (Freeze)
+      parameters:
+        - name: contestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Замороженная таблица результатов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Standings'
+        '404':
+          description: Соревнование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/contests/{contestId}/unfreeze:
+    post:
+      operationId: unfreezeContest
+      summary: Разморозить турнирную таблицу (Unfreeze)
+      parameters:
+        - name: contestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Актуализированная таблица результатов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Standings'
+        '404':
+          description: Соревнование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/contests/{contestId}/events:
     get:
       operationId: contestEvents
@@ -345,3 +513,107 @@ components:
               type: string
             details:
               type: object
+
+    Contest:
+      type: object
+      required: [contestId, name, startsAt, endsAt, isFrozen]
+      properties:
+        contestId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        isFrozen:
+          type: boolean
+
+    Team:
+      type: object
+      required: [teamId, contestId, name]
+      properties:
+        teamId:
+          type: string
+          format: uuid
+        contestId:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    Problem:
+      type: object
+      required: [problemId, contestId, code, title]
+      properties:
+        problemId:
+          type: string
+          format: uuid
+        contestId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        title:
+          type: string
+        timeLimitMs:
+          type: integer
+        memoryLimitKb:
+          type: integer
+        testConfigReference:
+          type: string
+
+    ProblemResult:
+      type: object
+      required: [problemId, attempts, accepted, penalty]
+      properties:
+        problemId:
+          type: string
+          format: uuid
+        attempts:
+          type: integer
+        accepted:
+          type: boolean
+        acceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+        penalty:
+          type: integer
+
+    StandingRow:
+      type: object
+      required: [rank, teamId, solved, penalty, problems]
+      properties:
+        rank:
+          type: integer
+        teamId:
+          type: string
+          format: uuid
+        teamName:
+          type: string
+        solved:
+          type: integer
+        penalty:
+          type: integer
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProblemResult'
+
+    Standings:
+      type: object
+      required: [contestId, frozen, rows]
+      properties:
+        contestId:
+          type: string
+          format: uuid
+        frozen:
+          type: boolean
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/StandingRow'
