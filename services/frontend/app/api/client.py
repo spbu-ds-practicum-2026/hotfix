@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import httpx
 from app.api.errors import ApiError
 from app.config import API_BASE_URL, USE_MOCKS
 from app.models.contracts import (
@@ -18,6 +18,8 @@ from app.models.contracts import (
     Verdict,
 )
 
+if TYPE_CHECKING:  
+    import httpx
 
 
 OPEN_CONTEST_ID = "11111111-1111-1111-1111-111111111111"
@@ -96,7 +98,7 @@ MOCK_PROBLEMS: dict[str, list[Problem]] = {
 }
 
 MOCK_STANDINGS: dict[str, StandingsResponse] = {
-    # соответствует tests/fixtures/standings/standings-normal.json
+    
     OPEN_CONTEST_ID: StandingsResponse(
         contest_id=OPEN_CONTEST_ID,
         frozen=False,
@@ -124,7 +126,7 @@ MOCK_STANDINGS: dict[str, StandingsResponse] = {
             ),
         ],
     ),
-    # соответствует tests/fixtures/standings/standings-frozen.json
+   
     FROZEN_CONTEST_ID: StandingsResponse(
         contest_id=FROZEN_CONTEST_ID,
         frozen=True,
@@ -145,13 +147,13 @@ MOCK_STANDINGS: dict[str, StandingsResponse] = {
             ),
         ],
     ),
-    # состояние «таблица пуста»
+
     EMPTY_CONTEST_ID: StandingsResponse(
         contest_id=EMPTY_CONTEST_ID,
         frozen=False,
         rows=[],
     ),
-    # соответствует tests/fixtures/standings/standings-tie-break.json
+  
     TIEBREAK_CONTEST_ID: StandingsResponse(
         contest_id=TIEBREAK_CONTEST_ID,
         frozen=False,
@@ -193,11 +195,10 @@ class ApiClient:
         self.base_url = base_url.rstrip("/")
         self.use_mocks = use_mocks
         self._transport = transport
-        # mock-хранилище посылок: доступно тестам для управления статусами
+       
         self.mock_submissions: dict[str, Submission] = {}
 
-    # --- внутренние помощники реального режима ---
-
+    
     def _raise_for_error(self, response: httpx.Response) -> None:
         if response.is_success:
             return
@@ -215,6 +216,9 @@ class ApiClient:
     async def _request(
         self, method: str, path: str, **kwargs: object
     ) -> httpx.Response:
+        
+        import httpx
+
         try:
             async with httpx.AsyncClient(
                 timeout=10.0, transport=self._transport
@@ -231,8 +235,7 @@ class ApiClient:
         self._raise_for_error(response)
         return response
 
-    # --- отправка решения ---
-
+    
     async def create_submission(
         self, payload: SubmissionCreate, idempotency_key: str | None = None
     ) -> Submission:
@@ -279,8 +282,7 @@ class ApiClient:
             created_at=data["createdAt"],
         )
 
-    # --- статус посылки ---
-
+    
     async def get_submission(self, submission_id: str) -> Submission:
         if self.use_mocks:
             submission = self.mock_submissions.get(submission_id)
@@ -290,7 +292,7 @@ class ApiClient:
                     ApiErrorCode.SUBMISSION_NOT_FOUND,
                     "Submission not found",
                 )
-            # имитация прогресса проверки QUEUED -> PROCESSING -> COMPLETED
+            
             if submission.status not in FINAL_STATUSES:
                 updated = submission.model_copy()
                 if updated.status is SubmissionStatus.QUEUED:
@@ -324,8 +326,7 @@ class ApiClient:
             sequence=data.get("sequence"),
         )
 
-    # --- контесты, команды, задачи ---
-
+    
     async def list_contests(self) -> list[Contest]:
         if self.use_mocks:
             return list(MOCK_CONTESTS.values())

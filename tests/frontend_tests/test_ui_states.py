@@ -1,5 +1,6 @@
 
 import pytest
+from fastapi.testclient import TestClient
 
 pytest.importorskip("fastapi")
 main = pytest.importorskip("app.main")
@@ -10,7 +11,6 @@ from app.models.contracts import (
     Submission,
     SubmissionStatus,
 )
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -98,7 +98,7 @@ def test_contest_page_shows_problems_teams_and_form(ui):
     assert "Hello, Verdict!" in response.text
     assert "Team Alpha" in response.text
     assert 'action="/submit"' in response.text
-
+   
     assert '<option value="cpp">C++</option>' in response.text
     assert 'value="python"' not in response.text
 
@@ -110,14 +110,14 @@ def test_submission_loading_state_auto_refreshes(ui):
 
     assert response.status_code == 200
     assert "PROCESSING" in response.text
-   
+    # автообновление до финального статуса
     assert 'http-equiv="refresh"' in response.text
     assert "обновится автоматически" in response.text
 
 
 def test_submission_final_state_stops_refresh_and_shows_verdict(ui):
     submission_id = _inject_queued_submission()
-    
+    # дважды продвигаем mock: QUEUED -> PROCESSING -> COMPLETED
     ui.get(f"/submissions/{submission_id}")
     response = ui.get(f"/submissions/{submission_id}")
 
