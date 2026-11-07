@@ -181,3 +181,54 @@ tbody tr:hover {
         font-size: 28px;
     }
 }
+/* --- баннеры и состояния (неделя 2: loading / empty / error / freeze) --- */
+.banner {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.banner-loading {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+}
+.banner-empty {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+}
+.banner-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+.banner-frozen {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+}
+.badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.badge-frozen {
+    background: #dbeafe;
+    color: #1e40af;
+}
+.badge-open {
+    background: #dcfce7;
+    color: #166534;
+}
+.status {
+    font-weight: 700;
+}
+.status-completed { color: #166534; }
+.status-processing { color: #1d4ed8; }
+.status-queued { color: #64748b; }
+.status-retrying { color: #b45309; }
+.status-system_error { color: #b91c1c; }
