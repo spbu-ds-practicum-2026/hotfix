@@ -7,53 +7,8 @@ from uuid import UUID
 from contracts.statuses import SubmissionStatus, Verdict
 
 
-class StorageUnavailableError(Exception):
+class BrokerUnavailableError(Exception):
     pass
-
-
-class IdempotencyKeyReusedError(Exception):
-    pass
-
-
-@dataclass(frozen=True)
-class SubmissionState:
-    status: SubmissionStatus
-    verdict: Verdict | None
-    sequence: int
-
-
-@dataclass(frozen=True)
-class SubmissionRecord:
-    submission_id: UUID
-    state: SubmissionState
-    created_at: datetime
-    updated_at: datetime
-
-
-@dataclass(frozen=True)
-class OutboxEvent:
-    event_id: UUID
-    submission_id: UUID
-    routing_key: str
-    body: str
-    attempts: int = 0
-
-
-@dataclass(frozen=True)
-class NewSubmission:
-    submission_id: UUID
-    contest_id: UUID
-    team_id: UUID
-    problem_id: UUID
-    language: str
-    source_code: str
-    created_at: datetime
-
-
-@dataclass(frozen=True)
-class CreateSubmissionResult:
-    submission: SubmissionRecord
-    is_new: bool
 
 
 @dataclass(frozen=True)
@@ -83,47 +38,9 @@ class AffectedSubmission:
     status: SubmissionStatus
 
 
-class TargetCheck(str, Enum):
-    OK = "OK"
-    CONTEST_NOT_FOUND = "CONTEST_NOT_FOUND"
-    TEAM_NOT_FOUND = "TEAM_NOT_FOUND"
-    PROBLEM_NOT_FOUND = "PROBLEM_NOT_FOUND"
-    CONTEST_NOT_OPEN = "CONTEST_NOT_OPEN"
-
-
-class TargetChecker(Protocol):
-    async def check(
-        self, contest_id: UUID, team_id: UUID, problem_id: UUID, now: datetime
-    ) -> TargetCheck: ...
-
-
-class SubmissionStore(Protocol):
-    async def create_submission_with_outbox(
-        self,
-        submission: NewSubmission,
-        idempotency_key: UUID,
-        payload_hash: str,
-        queued_event: OutboxEvent,
-    ) -> CreateSubmissionResult: ...
-
-    async def get_submission_by_id(
-        self, submission_id: UUID
-    ) -> SubmissionRecord | None: ...
-
-
-class OutboxRepository(Protocol):
-    async def get_pending_outbox_events(self, limit: int) -> list[OutboxEvent]: ...
-
-    async def mark_outbox_event_published(self, event_id: UUID) -> None: ...
-
-    async def record_outbox_publish_failure(
-        self, event_id: UUID, error: str
-    ) -> None: ...
-
-
 class WorkerStore(Protocol):
-    async def claim(
-        self, submission_id: UUID, worker_id: str, lease_seconds: int
+    async def claim_submission(
+        self, submission_id: UUID, worker_id: UUID, lease_seconds: int
     ) -> Claim | None: ...
 
     async def extend_lease(
@@ -131,25 +48,26 @@ class WorkerStore(Protocol):
     ) -> bool: ...
 
     async def write_result(
-        self,
-        submission_id: UUID,
-        fencing_token: int,
-        status: SubmissionStatus,
-        verdict: Verdict | None,
-        verdict_event: OutboxEvent,
+        self, submission_id: UUID, fencing_token: int, verdict: Verdict
     ) -> WriteResultOutcome: ...
 
     async def mark_retrying(
-        self, submission_id: UUID, fencing_token: int, reason: str
+        self,
+        submission_id: UUID,
+        fencing_token: int,
+        reason: str,
+        next_attempt_at: datetime,
     ) -> bool: ...
 
     async def mark_system_error(
         self, submission_id: UUID, fencing_token: int, reason: str
     ) -> bool: ...
 
-    async def recover_expired(self, limit: int) -> list[AffectedSubmission]: ...
+    async def recover_expired(
+        self, limit: int, max_attempts: int
+    ) -> list[AffectedSubmission]: ...
 
-    async def requeue_retrying(self, limit: int) -> int: ...
+    async def enqueue_due_retries(self, limit: int) -> int: ...
 
     async def load_for_judging(self, submission_id: UUID) -> JudgingData | None: ...
 
