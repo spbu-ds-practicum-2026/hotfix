@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>VERDICT — Standings</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="container">
+    <header class="site-header">
+        <div class="logo">CodeArena</div>
+        <nav>
+            <a href="/">Контесты</a>
+        </nav>
+    </header>
+
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <span class="section-label">STANDINGS</span>
+                <h2>Турнирная таблица</h2>
+            </div>
+            {% if frozen %}
+                <span class="badge badge-frozen">freeze</span>
+            {% endif %}
+        </div>
+
+        {% if frozen %}
+        <div class="banner banner-frozen">
+            Таблица заморожена: проверки продолжаются, публичные результаты не обновляются до снятия freeze.
+        </div>
+        {% endif %}
+
+        {% if rows %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Место</th>
+                    <th>Команда</th>
+                    <th>Решено</th>
+                    <th>Штраф</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in rows %}
+                <tr>
+                    <td>{{ row.rank }}</td>
+                    <td>{{ row.team_name }}</td>
+                    <td>{{ row.solved }}</td>
+                    <td>{{ row.penalty }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="banner banner-empty">
+            Таблица пока пуста: нет завершённых проверок.
+        </div>
+        {% endif %}
+    </section>
+</main>
+</body>
+</html>

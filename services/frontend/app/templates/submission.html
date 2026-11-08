@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>VERDICT — Статус посылки</title>
+    {% if not is_final %}
+    <meta http-equiv="refresh" content="3">
+    {% endif %}
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="container">
+    <header class="site-header">
+        <div class="logo">CodeArena</div>
+        <nav>
+            <a href="/">Контесты</a>
+        </nav>
+    </header>
+
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <span class="section-label">SUBMISSION</span>
+                <h2>Статус посылки</h2>
+            </div>
+        </div>
+        <p><b>ID:</b> {{ submission.submission_id }}</p>
+        <p>
+            <b>Статус:</b>
+            <span class="status status-{{ submission.status.value | lower }}">{{ submission.status.value }}</span>
+        </p>
+        <p>
+            <b>Verdict:</b>
+            {% if submission.status.value == "COMPLETED" and submission.verdict %}
+                {{ submission.verdict.value }}
+            {% else %}
+                —
+            {% endif %}
+        </p>
+
+        {% if not is_final %}
+        <div class="banner banner-loading">
+            Проверка выполняется, страница обновится автоматически…
+        </div>
+        {% endif %}
+
+        {% if submission.status.value == "SYSTEM_ERROR" %}
+        <div class="banner banner-error">
+            Системная ошибка обработки: вердикт не вынесен. Попробуйте отправить решение повторно.
+        </div>
+        {% endif %}
+    </section>
+</main>
+</body>
+</html>

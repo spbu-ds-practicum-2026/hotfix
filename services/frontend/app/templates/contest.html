@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>VERDICT — {{ contest.name }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="container">
+    <header class="site-header">
+        <div class="logo">CodeArena</div>
+        <nav>
+            <a href="/">Контесты</a>
+            <a href="/contests/{{ contest.contest_id }}/standings">Standings</a>
+        </nav>
+    </header>
+
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <span class="section-label">CONTEST</span>
+                <h2>{{ contest.name }}</h2>
+                <p>{{ contest.starts_at }} — {{ contest.ends_at }}</p>
+            </div>
+            {% if contest.is_frozen %}
+                <span class="badge badge-frozen">freeze</span>
+            {% endif %}
+        </div>
+        <h3>Задачи</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Код</th>
+                    <th>Название</th>
+                    <th>Лимит времени</th>
+                    <th>Лимит памяти</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for problem in problems %}
+                <tr>
+                    <td>{{ problem.code }}</td>
+                    <td>{{ problem.title }}</td>
+                    <td>{{ problem.time_limit_ms }} мс</td>
+                    <td>{{ problem.memory_limit_kb }} КБ</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="card" id="submit">
+        <div class="section-header">
+            <div>
+                <span class="section-label">SUBMISSION</span>
+                <h2>Отправить решение</h2>
+                <p>Выберите команду и задачу и отправьте исходный код на проверку.</p>
+            </div>
+        </div>
+        <form method="post" action="/submit">
+            <input type="hidden" name="contest_id" value="{{ contest.contest_id }}">
+
+            <label>
+                Команда
+                <select name="team_id" required>
+                    {% for team in teams %}
+                    <option value="{{ team.team_id }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                Задача
+                <select name="problem_id" required>
+                    {% for problem in problems %}
+                    <option value="{{ problem.problem_id }}">{{ problem.code }} — {{ problem.title }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>
+                Язык программирования
+                <select name="language">
+                    <option value="cpp">C++</option>
+                </select>
+            </label>
+
+            <label>Исходный код
+                <textarea name="source_code" rows="12" required>#include &lt;iostream&gt;
+
+int main() {
+    std::cout &lt;&lt; "Hello, VERDICT!";
+}</textarea>
+            </label>
+
+            <button type="submit">Отправить решение</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>
