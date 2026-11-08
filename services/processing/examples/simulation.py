@@ -19,6 +19,7 @@ from worker.ports import (  # noqa: E402
     DeadLetter,
     Delivery,
     JudgingData,
+    SubmissionNotFoundError,
     WriteResultOutcome,
 )
 from worker.watchdog import Watchdog  # noqa: E402
@@ -74,13 +75,19 @@ class InMemoryWorkerStore:
         self.queue.put_nowait(submission_id)
         return submission_id
 
+    def _owns(self, row, fencing_token) -> bool:
+        return (
+            row.status is SubmissionStatus.PROCESSING
+            and row.fencing_token == fencing_token
+            and row.lease_until is not None
+            and row.lease_until > self._clock()
+        )
+
     async def claim_submission(self, submission_id, worker_id, lease_seconds):
         row = self.rows.get(submission_id)
         if row is None:
-            return None
-        claimable = row.status in (SubmissionStatus.QUEUED, SubmissionStatus.RETRYING)
-        due = row.next_attempt_at is None or row.next_attempt_at <= self._clock()
-        if not (claimable and due):
+            raise SubmissionNotFoundError(str(submission_id))
+        if row.status is not SubmissionStatus.QUEUED:
             return None
         row.status = SubmissionStatus.PROCESSING
         row.fencing_token += 1
@@ -92,14 +99,14 @@ class InMemoryWorkerStore:
 
     async def extend_lease(self, submission_id, fencing_token, lease_seconds):
         row = self.rows[submission_id]
-        if row.status is not SubmissionStatus.PROCESSING or row.fencing_token != fencing_token:
+        if not self._owns(row, fencing_token):
             return False
         row.lease_until = self._clock() + timedelta(seconds=lease_seconds)
         return True
 
     async def write_result(self, submission_id, fencing_token, verdict):
         row = self.rows[submission_id]
-        if row.status is not SubmissionStatus.PROCESSING or row.fencing_token != fencing_token:
+        if not self._owns(row, fencing_token):
             return WriteResultOutcome.STALE_TOKEN
         row.status = SubmissionStatus.COMPLETED
         row.verdict = verdict
@@ -108,7 +115,7 @@ class InMemoryWorkerStore:
 
     async def mark_retrying(self, submission_id, fencing_token, reason, next_attempt_at):
         row = self.rows[submission_id]
-        if row.status is not SubmissionStatus.PROCESSING or row.fencing_token != fencing_token:
+        if not self._owns(row, fencing_token):
             return False
         row.status = SubmissionStatus.RETRYING
         row.next_attempt_at = next_attempt_at
@@ -118,7 +125,7 @@ class InMemoryWorkerStore:
 
     async def mark_system_error(self, submission_id, fencing_token, reason):
         row = self.rows[submission_id]
-        if row.status is not SubmissionStatus.PROCESSING or row.fencing_token != fencing_token:
+        if not self._owns(row, fencing_token):
             return False
         row.status = SubmissionStatus.SYSTEM_ERROR
         row.last_error = reason
@@ -160,7 +167,7 @@ class DeadLetterList:
 
 
 def delivery_for(submission_id: UUID) -> Delivery:
-    return Delivery(uuid4(), json.dumps({"submissionId": str(submission_id)}))
+    return Delivery(uuid4(), json.dumps({"schemaVersion": 1, "submissionId": str(submission_id)}))
 
 
 async def main() -> None:
@@ -238,6 +245,29 @@ async def main() -> None:
     fresh = await store.write_result(submission_id, claim_b.fencing_token, Verdict.ACCEPTED)
     print(f"токен A={claim_a.fencing_token}: {stale.value}; токен B={claim_b.fencing_token}: {fresh.value}")
     show("итог", submission_id)
+
+    print("\n== посылки нет ни на одном шарде ==")
+    before = len(dead_letters.items)
+    decision = await handler.handle(delivery_for(uuid4()))
+    print("решение:", decision.value, "| записей в DLQ добавилось:", len(dead_letters.items) - before,
+          "| причина:", dead_letters.items[-1].reason)
+
+    print("\n== неподдерживаемая schemaVersion ==")
+    before = len(dead_letters.items)
+    body = json.dumps({"schemaVersion": 2, "submissionId": str(uuid4())})
+    decision = await handler.handle(Delivery(uuid4(), body))
+    print("решение:", decision.value, "| записей в DLQ добавилось:", len(dead_letters.items) - before,
+          "| причина:", dead_letters.items[-1].reason)
+
+    print("\n== аренда истекла до записи результата ==")
+    submission_id = store.add("// @judge: accepted")
+    store.queue.get_nowait()
+    expired_claim = await store.claim_submission(submission_id, uuid4(), settings.lease_seconds)
+    clock.advance(settings.lease_seconds + 1)
+    outcome = await store.write_result(submission_id, expired_claim.fencing_token, Verdict.ACCEPTED)
+    print("запись с верным токеном после истечения аренды:", outcome.value)
+    await drain()
+    show("после watchdog и повторной проверки", submission_id)
 
     print("\n== повреждённое сообщение ==")
     bad = Delivery(uuid4(), "not json")

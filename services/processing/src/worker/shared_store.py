@@ -8,6 +8,7 @@ from worker.ports import (
     AffectedSubmission,
     Claim,
     JudgingData,
+    SubmissionNotFoundError,
     WriteResultOutcome,
 )
 
@@ -21,7 +22,7 @@ class ShardedWorkerStore:
     ) -> Claim | None:
         repository = await self._shard_router.find_repository_for_submission(submission_id)
         if repository is None:
-            return None
+            raise SubmissionNotFoundError(str(submission_id))
         claimed = await repository.claim_submission(submission_id, worker_id, lease_seconds)
         if claimed is None:
             return None
