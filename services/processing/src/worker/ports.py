@@ -11,6 +11,10 @@ class BrokerUnavailableError(Exception):
     pass
 
 
+class SubmissionNotFoundError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class Claim:
     submission_id: UUID

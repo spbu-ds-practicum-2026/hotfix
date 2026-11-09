@@ -22,6 +22,7 @@ from worker.ports import (
     DeadLetterSink,
     Delivery,
     JudgingData,
+    SubmissionNotFoundError,
     WorkerStore,
     WriteResultOutcome,
 )
@@ -33,9 +34,16 @@ class LeaseLostError(Exception):
     pass
 
 
+SUPPORTED_SCHEMA_VERSION = 1
+
+
 def parse_submission_id(body: str) -> UUID:
     data = json.loads(body)
-    value = data.get("submissionId") if isinstance(data, dict) else None
+    if not isinstance(data, dict):
+        raise ValueError("message body must be a JSON object")
+    if data.get("schemaVersion") != SUPPORTED_SCHEMA_VERSION:
+        raise ValueError(f"unsupported schemaVersion: {data.get('schemaVersion')}")
+    value = data.get("submissionId")
     if value is None:
         raise ValueError("submissionId is missing")
     return UUID(str(value))
@@ -93,9 +101,26 @@ class SubmissionHandler:
             return AckDecision.REQUEUE_WITH_DELAY
 
     async def _process(self, delivery: Delivery, submission_id: UUID) -> AckDecision:
-        claim = await self._store.claim_submission(
-            submission_id, self._worker_id, self._settings.lease_seconds
-        )
+        try:
+            claim = await self._store.claim_submission(
+                submission_id, self._worker_id, self._settings.lease_seconds
+            )
+        except SubmissionNotFoundError:
+            logger.warning(
+                "submission not found submissionId=%s eventId=%s",
+                submission_id,
+                delivery.message_id,
+            )
+            await self._dead_letters.send(
+                DeadLetter(
+                    message_id=delivery.message_id,
+                    body=delivery.body,
+                    reason="submission not found on any shard",
+                    submission_id=submission_id,
+                    attempts=0,
+                )
+            )
+            return AckDecision.ACK
         if claim is None:
             logger.info(
                 "claim not acquired submissionId=%s eventId=%s",
