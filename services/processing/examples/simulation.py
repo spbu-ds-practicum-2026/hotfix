@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from config import ProcessingSettings  # noqa: E402
 from contracts.statuses import SubmissionStatus, Verdict  # noqa: E402
 from judge0.fake_judge0 import FakeJudge0  # noqa: E402
+from retry.policy import backoff_delay_seconds  # noqa: E402
 from worker.handler import SubmissionHandler  # noqa: E402
 from worker.ports import (  # noqa: E402
     AffectedSubmission,
@@ -32,7 +33,7 @@ ENVIRONMENT = {
     "JUDGE0_URL": "http://judge0:2358",
     "LEASE_SECONDS": "30",
     "MAX_RETRY_ATTEMPTS": "3",
-    "RETRY_BASE_DELAY_SECONDS": "0",
+    "RETRY_BASE_DELAY_SECONDS": "2",
     "JUDGE0_POLL_INTERVAL_SECONDS": "0.01",
     "JUDGE0_TOTAL_TIMEOUT_SECONDS": "1",
 }
@@ -68,6 +69,7 @@ class InMemoryWorkerStore:
         self.queue: asyncio.Queue[UUID] = asyncio.Queue()
         self._clock = clock
         self._settings = settings
+        self._random = random.Random(2)
 
     def add(self, source_code: str) -> UUID:
         submission_id = uuid4()
@@ -138,7 +140,9 @@ class InMemoryWorkerStore:
             if row.status is SubmissionStatus.PROCESSING and row.lease_until < self._clock():
                 exhausted = row.attempt_count >= max_attempts
                 row.status = SubmissionStatus.SYSTEM_ERROR if exhausted else SubmissionStatus.RETRYING
-                row.next_attempt_at = None if exhausted else self._clock()
+                row.next_attempt_at = None if exhausted else self._clock() + timedelta(
+                    seconds=backoff_delay_seconds(self._settings, row.attempt_count, self._random)
+                )
                 row.sequence += 1
                 affected.append(AffectedSubmission(submission_id, row.status))
         return affected
@@ -185,7 +189,15 @@ async def main() -> None:
         while True:
             await watchdog.run_once()
             if store.queue.empty():
-                return
+                waiting = [
+                    row.next_attempt_at
+                    for row in store.rows.values()
+                    if row.status is SubmissionStatus.RETRYING and row.next_attempt_at is not None
+                ]
+                if not waiting:
+                    return
+                clock.current = max(clock.current, min(waiting))
+                continue
             while not store.queue.empty():
                 await handler.handle(delivery_for(store.queue.get_nowait()))
 
@@ -240,6 +252,10 @@ async def main() -> None:
     claim_a = await store.claim_submission(submission_id, uuid4(), settings.lease_seconds)
     clock.advance(settings.lease_seconds + 1)
     await watchdog.run_once()
+    delay = (store.rows[submission_id].next_attempt_at - clock()).total_seconds()
+    print(f"watchdog перевёл в RETRYING с задержкой {delay:.2f} с (повтор не мгновенный)")
+    clock.advance(settings.retry_max_delay_seconds)
+    await watchdog.run_once()
     claim_b = await store.claim_submission(submission_id, uuid4(), settings.lease_seconds)
     stale = await store.write_result(submission_id, claim_a.fencing_token, Verdict.WRONG_ANSWER)
     fresh = await store.write_result(submission_id, claim_b.fencing_token, Verdict.ACCEPTED)
@@ -266,6 +282,9 @@ async def main() -> None:
     clock.advance(settings.lease_seconds + 1)
     outcome = await store.write_result(submission_id, expired_claim.fencing_token, Verdict.ACCEPTED)
     print("запись с верным токеном после истечения аренды:", outcome.value)
+    await watchdog.run_once()
+    delay = (store.rows[submission_id].next_attempt_at - clock()).total_seconds()
+    print(f"watchdog перевёл в RETRYING с задержкой {delay:.2f} с (повтор не мгновенный)")
     await drain()
     show("после watchdog и повторной проверки", submission_id)
 
