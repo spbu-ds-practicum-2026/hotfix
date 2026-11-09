@@ -9,6 +9,18 @@ class StorageUnavailableError(StorageError):
     """База недоступна или оборвала соединение. API должен ответить 503 TEMPORARILY_UNAVAILABLE."""
 
 
+class ContestMigratingError(StorageUnavailableError):
+    """Контест переносится на другой шард (migration_state = MIGRATING).
+
+    Наследует StorageUnavailableError: API отвечает 503 TEMPORARILY_UNAVAILABLE, worker возвращает
+    сообщение в очередь с задержкой (NACK), Watchdog и пересчёт standings пропускают такой контест.
+    """
+
+
+class ContestUnavailableError(StorageUnavailableError):
+    """Контеста нет на выбранном шарде (например, он только что перенесён). Повторить запрос позже."""
+
+
 class IdempotencyKeyReusedError(StorageError):
     """Тот же (team_id, idempotency_key), но другое тело запроса. API: 409 IDEMPOTENCY_KEY_REUSED."""
 

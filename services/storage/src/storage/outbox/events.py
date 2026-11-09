@@ -1,4 +1,10 @@
-"""Сборка тел событий по контракту (docs/contracts/verdict-contracts.md, раздел 7). Ключи payload — camelCase."""
+"""Сборка тел событий по docs/tr.md, раздел «Формат событий». Ключи payload — camelCase.
+
+submission.queued.v1:  eventId, schemaVersion, traceId, occurredAt, submissionId, sequence.
+submission.verdict.v1: те же поля + fencingToken, status (всегда COMPLETED), verdict, submittedAt,
+                       contestId, teamId, problemId.
+attemptId в событиях нет: попытка появляется только после захвата посылки worker'ом.
+"""
 
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -26,7 +32,6 @@ def build_submission_queued_event(
     trace_id: UUID,
     occurred_at: datetime,
     event_id: UUID | None = None,
-    attempt_id: UUID | None = None,
     sequence: int = 1,
 ) -> NewOutboxEvent:
     event_id = event_id or uuid4()
@@ -36,7 +41,6 @@ def build_submission_queued_event(
         "traceId": str(trace_id),
         "occurredAt": format_utc_timestamp(occurred_at),
         "submissionId": str(submission_id),
-        "attemptId": str(attempt_id or uuid4()),
         "sequence": sequence,
     }
     return NewOutboxEvent(
@@ -54,6 +58,9 @@ def build_submission_queued_event(
 def build_submission_verdict_event(
     *,
     submission_id: UUID,
+    contest_id: UUID,
+    team_id: UUID,
+    problem_id: UUID,
     trace_id: UUID,
     occurred_at: datetime,
     submitted_at: datetime,
@@ -62,17 +69,10 @@ def build_submission_verdict_event(
     verdict: Verdict | None,
     sequence: int,
     event_id: UUID | None = None,
-    attempt_id: UUID | None = None,
 ) -> NewOutboxEvent:
-    """submittedAt добавлен по требованию icpc-scoring-v2: без него нельзя посчитать штраф.
-
-    Как и модель SubmissionVerdictEvent в services/processing/src/contracts/events.py, событие бывает
-    только для status = COMPLETED и обязано содержать вердикт.
-    """
+    """Событие бывает только для status = COMPLETED и обязано содержать вердикт (при SYSTEM_ERROR события нет)."""
     if status is not SubmissionStatus.COMPLETED or verdict is None:
-        raise ValueError(
-            "submission.verdict.v1 публикуется только для COMPLETED с вердиктом"
-        )
+        raise ValueError("submission.verdict.v1 публикуется только для COMPLETED с вердиктом")
     event_id = event_id or uuid4()
     payload = {
         "eventId": str(event_id),
@@ -80,12 +80,14 @@ def build_submission_verdict_event(
         "traceId": str(trace_id),
         "occurredAt": format_utc_timestamp(occurred_at),
         "submissionId": str(submission_id),
-        "attemptId": str(attempt_id or uuid4()),
+        "sequence": sequence,
         "fencingToken": fencing_token,
         "status": status.value,
         "verdict": verdict.value,
-        "sequence": sequence,
         "submittedAt": format_utc_timestamp(submitted_at),
+        "contestId": str(contest_id),
+        "teamId": str(team_id),
+        "problemId": str(problem_id),
     }
     return NewOutboxEvent(
         event_id=event_id,

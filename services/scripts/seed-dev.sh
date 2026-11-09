@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Применяет миграции и загружает демо-данные.
-# По умолчанию используется шард 0.
+# Применяет миграции на всех шардах и загружает повторяемые демо-данные на шарды-владельцы.
+# Безопасно запускать повторно. Чистое окружение: docker compose ... down -v, затем этот скрипт.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,15 +8,6 @@ ROOT_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 cd "$ROOT_DIR"
 
 export PYTHONPATH="$ROOT_DIR/services/storage/src${PYTHONPATH:+:$PYTHONPATH}"
-
-SHARD="${1:-0}"
-
-if [[ "$SHARD" != "0" && "$SHARD" != "1" ]]; then
-  echo "Ошибка: номер шарда должен быть 0 или 1." >&2
-  exit 2
-fi
-
-alembic -c services/storage/alembic.ini \
-  -x "shard=$SHARD" upgrade head
-
-python -m storage.seed.seed --shard "$SHARD"
+python -m storage.cli migrate
+python -m storage.cli seed "$@"
+python -m storage.cli distribution
