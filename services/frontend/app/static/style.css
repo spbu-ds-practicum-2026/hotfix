@@ -224,6 +224,14 @@ tbody tr:hover {
     background: #dcfce7;
     color: #166534;
 }
+.badge-upcoming {
+    background: #fef3c7;
+    color: #92400e;
+}
+.badge-finished {
+    background: #e2e8f0;
+    color: #475569;
+}
 .status {
     font-weight: 700;
 }
