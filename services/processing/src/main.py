@@ -14,7 +14,7 @@ from rabbitmq.topology import declare_topology
 from storage.repositories import StorageUnavailableError
 from storage.shard_router.router import ShardRouter
 from worker.handler import SubmissionHandler
-from worker.sharded_store import ShardedWorkerStore
+from worker.shared_store import ShardedWorkerStore
 from worker.watchdog import Watchdog
 
 

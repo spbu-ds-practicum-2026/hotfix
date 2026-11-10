@@ -41,6 +41,10 @@
                     <td>
                         {% if contest.is_frozen %}
                             <span class="badge badge-frozen">freeze</span>
+                        {% elif contest.state == "upcoming" %}
+                            <span class="badge badge-upcoming">скоро</span>
+                        {% elif contest.state == "finished" %}
+                            <span class="badge badge-finished">завершён</span>
                         {% else %}
                             <span class="badge badge-open">открыт</span>
                         {% endif %}

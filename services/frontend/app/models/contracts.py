@@ -1,6 +1,12 @@
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+def _parse_utc(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
 class SubmissionStatus(str, Enum):
@@ -57,6 +63,20 @@ class Contest(BaseModel):
     starts_at: str
     ends_at: str
     is_frozen: bool = False
+
+    @property
+    def state(self) -> str:
+        try:
+            starts = _parse_utc(self.starts_at)
+            ends = _parse_utc(self.ends_at)
+        except ValueError:
+            return "open"
+        now = datetime.now(UTC)
+        if now < starts:
+            return "upcoming"
+        if now >= ends:
+            return "finished"
+        return "open"
 
 
 class Team(BaseModel):

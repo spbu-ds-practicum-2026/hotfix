@@ -112,7 +112,11 @@ def get_contest_standings(
         raise contest_not_found()
 
     saved_standings = repo.get_standings(contest_id)
-    if saved_standings is not None and contest_id not in _active_standings_services:
+    if (
+        saved_standings is not None
+        and saved_standings.rows
+        and contest_id not in _active_standings_services
+    ):
         return saved_standings.to_dict()
 
     service = get_standings_service_for(contest, repo)
