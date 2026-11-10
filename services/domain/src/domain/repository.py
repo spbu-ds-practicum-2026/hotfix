@@ -282,7 +282,7 @@ class SqlDomainRepository(DomainRepository):
         sql = text(
             """
             INSERT INTO standings (contest_id, is_frozen, rows, last_event_sequence, updated_at)
-            VALUES (:cid, :frozen, :rows::jsonb, :seq, now())
+            VALUES (:cid, :frozen, CAST(:rows AS jsonb), :seq, now())
             ON CONFLICT (contest_id) DO UPDATE SET
                 is_frozen = EXCLUDED.is_frozen,
                 rows = EXCLUDED.rows,
@@ -379,4 +379,3 @@ class ShardedDomainRepository(DomainRepository):
 
     def set_contest_freeze(self, contest_id: UUID, is_frozen: bool) -> None:
         self._repo_for_contest(contest_id).set_contest_freeze(contest_id, is_frozen)
-

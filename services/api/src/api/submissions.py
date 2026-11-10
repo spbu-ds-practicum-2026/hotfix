@@ -29,7 +29,6 @@ from storage.repositories import (
     StorageUnavailableError,
     SubmissionRecord,
 )
-from storage.repositories.errors import ContestNotFoundError, ContestNotOpenError
 from storage.shard_router.router import ShardRouter
 
 router = APIRouter(prefix="/api/v1")
@@ -74,6 +73,13 @@ async def create_submission(
     submission_id = uuid4()
     trace_id = uuid4()
     try:
+        schedule = await shard_router.contest_repository_for(
+            request_body.contest_id
+        ).get_contest_schedule()
+        if schedule is None:
+            raise contest_not_found()
+        if not schedule.starts_at <= now < schedule.ends_at:
+            raise contest_not_open()
         repository = shard_router.repository_for_contest(request_body.contest_id)
         result = await repository.create_submission_with_outbox(
             NewSubmission(
@@ -94,10 +100,6 @@ async def create_submission(
         )
     except IdempotencyKeyReusedError:
         raise idempotency_key_reused() from None
-    except ContestNotFoundError:
-        raise contest_not_found() from None
-    except ContestNotOpenError:
-        raise contest_not_open() from None
     except ReferenceNotFoundError as error:
         if error.reference == "team":
             raise team_not_found() from None

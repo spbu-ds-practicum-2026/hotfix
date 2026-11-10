@@ -1,8 +1,9 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 sqlalchemy[asyncio]
 asyncpg
+psycopg[binary]
 alembic
 aio-pika
 httpx
