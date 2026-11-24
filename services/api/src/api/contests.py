@@ -102,6 +102,16 @@ def list_contest_problems(
     return [p.to_dict() for p in problems]
 
 
+def _fresh_standings_service(contest: Contest, repo: DomainRepository) -> StandingsService:
+    return StandingsService(
+        contest=contest,
+        teams=repo.list_teams(contest.contest_id),
+        problems=repo.list_problems(contest.contest_id),
+        initial_attempts=repo.list_submissions(contest.contest_id),
+        is_frozen=False,
+    )
+
+
 @router.get("/contests/{contest_id}/standings")
 def get_contest_standings(
     contest_id: UUID,
@@ -111,16 +121,13 @@ def get_contest_standings(
     if contest is None:
         raise contest_not_found()
 
-    saved_standings = repo.get_standings(contest_id)
-    if (
-        saved_standings is not None
-        and saved_standings.rows
-        and contest_id not in _active_standings_services
-    ):
-        return saved_standings.to_dict()
+    if contest.is_frozen:
+        # Публичная таблица заморожена: отдаём снимок, сохранённый в момент freeze.
+        saved_standings = repo.get_standings(contest_id)
+        if saved_standings is not None:
+            return saved_standings.to_dict()
 
-    service = get_standings_service_for(contest, repo)
-    standings = service.get_standings()
+    standings = _fresh_standings_service(contest, repo).get_standings()
     repo.save_standings(standings)
     return standings.to_dict()
 
@@ -134,8 +141,13 @@ def freeze_contest_standings(
     if contest is None:
         raise contest_not_found()
 
-    service = get_standings_service_for(contest, repo)
-    frozen_standings = service.freeze()
+    if contest.is_frozen:
+        # Повторный freeze не меняет снимок.
+        saved_standings = repo.get_standings(contest_id)
+        if saved_standings is not None:
+            return saved_standings.to_dict()
+
+    frozen_standings = _fresh_standings_service(contest, repo).freeze()
     repo.set_contest_freeze(contest_id, is_frozen=True)
     repo.save_standings(frozen_standings)
     return frozen_standings.to_dict()
@@ -150,8 +162,7 @@ def unfreeze_contest_standings(
     if contest is None:
         raise contest_not_found()
 
-    service = get_standings_service_for(contest, repo)
-    unfrozen_standings = service.unfreeze()
+    unfrozen_standings = _fresh_standings_service(contest, repo).unfreeze()
     repo.set_contest_freeze(contest_id, is_frozen=False)
     repo.save_standings(unfrozen_standings)
     return unfrozen_standings.to_dict()
