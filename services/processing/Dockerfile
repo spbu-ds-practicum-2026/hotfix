@@ -3,7 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 COPY services/processing/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir --default-timeout=300 --retries=10 -r /app/requirements.txt
 
 COPY services/processing/src /app/services/processing/src
 COPY services/storage/src /app/services/storage/src
